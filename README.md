@@ -1,6 +1,7 @@
 # music_player
 
-A new Flutter project.
+Схема БД:
+![supabase-schema-nmidcmsxkqbgsjhhnvfo (2)](https://github.com/user-attachments/assets/88e1cffa-b3a8-4ec8-80f1-ac57c0950fd7)
 
 ## Getting Started
 
