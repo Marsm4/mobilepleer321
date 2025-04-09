@@ -1,0 +1,141 @@
+import 'package:flutter/material.dart';
+import 'package:audioplayers/audioplayers.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
+
+class PlayerProvider with ChangeNotifier {
+  final AudioPlayer _audioPlayer = AudioPlayer();
+  final supabase = Supabase.instance.client;
+
+  List<Map<String, dynamic>> _tracksList = [];
+  int _currentTrackIndex = 0;
+  bool _isPlaying = false;
+  Duration _duration = Duration.zero;
+  Duration _position = Duration.zero;
+  bool _isPlayerVisible = true;
+
+  bool get isPlayerVisible => _isPlayerVisible;
+  List<Map<String, dynamic>> get tracksList => _tracksList;
+  int get currentTrackIndex => _currentTrackIndex;
+  bool get isPlaying => _isPlaying;
+  Duration get duration => _duration;
+  Duration get position => _position;
+  Map<String, dynamic> get currentTrack => 
+      _tracksList.isNotEmpty ? _tracksList[_currentTrackIndex] : {};
+
+  PlayerProvider() {
+    _setupAudioListeners();
+  }
+
+  void setPlayerVisibility(bool isVisible) {
+    if (_isPlayerVisible != isVisible) {
+      _isPlayerVisible = isVisible;
+      notifyListeners();
+    }
+  }
+
+  void _setupAudioListeners() {
+    _audioPlayer.onPlayerStateChanged.listen((state) {
+      _isPlaying = state == PlayerState.playing;
+      notifyListeners();
+    });
+
+    _audioPlayer.onDurationChanged.listen((duration) {
+      _duration = duration;
+      notifyListeners();
+    });
+
+    _audioPlayer.onPositionChanged.listen((position) {
+      _position = position;
+      notifyListeners();
+    });
+  }
+
+  Future<void> _playCurrentTrack() async {
+    if (_tracksList.isEmpty) return;
+    
+    final track = currentTrack;
+    final audioUrl = track['MusicUrl'];
+    if (audioUrl == null || audioUrl.isEmpty) {
+      return;
+    }
+
+    try {
+      await _audioPlayer.play(UrlSource(audioUrl));
+    }
+    catch(e) {}
+  }
+
+  Future<void> stopPlaying() async {
+    await _audioPlayer.stop();
+  }
+
+  Future<void> playPause() async {
+    if (_tracksList.isEmpty) return;
+
+    if (_isPlaying) {
+      await _audioPlayer.pause();
+    } else {
+      if (_position.inMilliseconds > 0) {
+        await _audioPlayer.resume();
+      } else {
+        await _playCurrentTrack();
+      }
+    }
+  }
+
+  Future<void> seek(Duration position) async {
+    await _audioPlayer.seek(position);
+  }
+
+  Future<void> setTracks(List<Map<String, dynamic>> tracks, {int? index}) async {
+    _tracksList = tracks;
+    _currentTrackIndex = index ?? 0;
+    notifyListeners();
+    
+    await _playCurrentTrack(); 
+  }
+
+  void playCurrentTrack() async{
+    await _playCurrentTrack();
+  }
+
+  void setTrackList(List<Map<String, dynamic>> trackList, {int? index}) {
+    _tracksList = trackList;
+    _currentTrackIndex = index ?? 0;
+
+    notifyListeners();
+  }
+
+  Future<void> nextTrack() async {
+    if (_tracksList.isEmpty) return;
+    
+    if (_currentTrackIndex < _tracksList.length - 1) {
+      _currentTrackIndex++;
+    }
+    else {
+      _currentTrackIndex = 0;
+    }
+    notifyListeners();
+    await _playCurrentTrack();
+    
+  }
+
+  Future<void> previousTrack() async {
+    if (_tracksList.isEmpty) return;
+    
+    if (_currentTrackIndex > 0) {
+      _currentTrackIndex--;
+    }
+    else {
+      _currentTrackIndex = tracksList.length - 1;
+    }
+    notifyListeners();
+    await _playCurrentTrack();
+  }
+
+  @override
+  void dispose() {
+    _audioPlayer.dispose();
+    super.dispose();
+  }
+}
